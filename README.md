@@ -14,6 +14,7 @@ the 1st BLE sample was edited
 by microduino staffs.
 the 1st ARM used for adaptation was UARM from UFactory.
 thx. both of them to support us.
+sample video of chess piece move: https://v.qq.com/x/page/h0355wmirzg.html
 
 any question, pls mail me: 
 yuandj1972@163.com
