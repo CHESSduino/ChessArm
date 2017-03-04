@@ -25,3 +25,12 @@ http://v.qq.com/page/f/c/i/f0355vykaci.html
 (see srcfiles of 2 arms, 
  Metal.tst08_fullboard(90point) test ARM1.txt
  Metal2.tst01_fullboard(90point) test ARM2.txt)
+
+---------------------
+Update record: 3/3/2017
+Main release point is Metal2.v0.31.MetalBLE-2arm-ShowArm1-4x4Sudoku..txt 
+  you can rename it to Metal2.ino to compile and upload microduin Core+64k, to control UArm for Pieces move.
+  See video: (uploading...)
+2nd release is random4x4Sudoku.ino
+  It's Sudoku 4x4 Level AI module, using the console output to view the process of AI thinking.
+  (just upload and run it, to view the Serial.print output.)
