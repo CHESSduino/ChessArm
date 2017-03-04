@@ -32,7 +32,7 @@ Update record: 3/3/2017
 Main release point is Metal2.v0.31.MetalBLE-2arm-ShowArm1-4x4Sudoku..txt 
 
   you can rename it to Metal2.ino to compile and upload microduin Core+64k, to control UArm for Pieces move.
-  See video: (uploading...)
+  See video: (https://v.qq.com/x/page/s0380m9k0g6.html)
   
 2nd release is random4x4Sudoku.ino
 
