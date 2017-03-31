@@ -1,0 +1,1441 @@
+#include <SoftwareSerial.h>
+SoftwareSerial mySerial(4, 5); //RX,TX
+
+// adding a reset function to jump 0;
+void (* resetFunc)(void) = 0;
+
+void Metal_54mov( char x, char y, bool autopump = 1, bool off = 0 );
+void Metal2_54mov( char x, char y, bool autopump = 1, bool off = 0 );
+void Metal3_90mov( char n, char x, char y );
+void Metal_Action_bat1( void );
+void Metal_Action_bat2( void ); // arm2 position init;
+void Metal_Action_bat3( void ); // arm2 sudoku 4x4;
+void Metal_Action_bat4( void ); // arm2 sudoku 6x6;
+
+void BLE_setup() {
+  // Open serial communications and wait for port to open:
+  Serial.begin(115200);
+  while (!Serial) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
+  Serial.println("Good morning!");
+
+  Serial1.begin(115200);
+  while (!Serial1) {
+    ; // wait for serial port to connect. Needed for native USB port only
+  }
+  Serial1.println("Good noon!");
+
+  // init random.
+  randomSeed( analogRead(0) );
+    
+  // set the data rate for the SoftwareSerial port
+  mySerial.begin(9600);
+  mySerial.println("Hello, world?");
+}
+
+int BLE_inByte = 0;
+char BLE_inLine[80], BLE_inStr[80] = "";
+int BLE_iMaxDelay = 0;
+int BLE_countDelay( int m = 500 )
+{
+  BLE_iMaxDelay ++;
+  if ( BLE_iMaxDelay > m )
+  {
+    int ret = BLE_iMaxDelay;
+    BLE_iMaxDelay = 0;
+    return ret;
+  }
+  return 0;
+}
+
+void BLE_loop() { // run over and over
+  BLE_inByte = 0;
+  while (mySerial.available() ) {
+    char c = mySerial.read();
+    BLE_inLine[BLE_inByte++] = c;
+/*    Serial.print( inByte );
+//    Serial.print( " " );
+    mySerial.print(inByte++);
+//    Serial.print( " " );*/
+    BLE_inByte ++;
+  } BLE_inLine[BLE_inByte] = 0;
+  if ( BLE_inByte > 0 )
+  {
+//    Serial.print( strlen(inLine) );
+//    Serial.print( ":" );
+/*    int cnt = countDelay();
+    if ( cnt > 0 )
+      strcpy( inStr, inLine );
+    else 
+*/      strcat( BLE_inStr, BLE_inLine );
+    if ( BLE_inLine[0] == '\n' ||
+         BLE_inLine[0] == '\r' )
+    {
+      if ( BLE_inStr[0] == 'm' )
+      {
+        if ( BLE_inStr[2] == '#' )
+        {
+          strcpy( BLE_inStr, BLE_inStr+1 );
+      } }
+      char fx, fy;
+      // adding 5 ... #25 Fn Xx Yy. cmd.
+      if ( BLE_inStr[0] == '6' &&
+           BLE_inStr[1] == '#' )
+      {
+        if ( BLE_inStr[2] == '4' )
+          Metal_Action_bat3();
+      } else
+      // adding 5 ... #25 Fn Xx Yy. cmd.
+      if ( BLE_inStr[0] == '5' &&
+           BLE_inStr[1] == '#' )
+      {
+          Metal_Action_bat2();
+      } else
+      // adding 4 ... #25 Fn Xx Yy. cmd.
+      if ( BLE_inStr[0] == '4' )
+      {
+        if ( BLE_inStr[1] == '0' )
+          resetFunc();  // reset.
+        else 
+          Metal_Action_bat1();
+      }
+      else
+      // adding 3#25 Fn Xx Yy. cmd.
+      if ( BLE_inStr[0] == '3' &&
+           BLE_inStr[4] == ' ' &&
+           BLE_inStr[5] == 'F' &&
+           BLE_inStr[6] >= '1' && BLE_inStr[9] <= '9' &&
+           BLE_inStr[7] == ' ' &&
+           BLE_inStr[8] == 'X' &&
+           BLE_inStr[9] >= '0' && BLE_inStr[9] <= '8' &&
+           BLE_inStr[10] == ' ' &&
+           BLE_inStr[11] == 'Y' &&
+           BLE_inStr[12] >= '1' && BLE_inStr[12] <= '9' )
+      {
+        fx = BLE_inStr[9] - '0' - 4;
+        fy = BLE_inStr[12] - '0';
+        Metal3_90mov( BLE_inStr[6] - '1', fx, fy );
+      } else
+      // adding 1#25 FO Xx Yy. cmd.
+      if ( BLE_inStr[4] == ' ' &&
+           BLE_inStr[5] == 'F' &&
+           BLE_inStr[6] == '0' &&
+           BLE_inStr[7] == ' ' &&
+           BLE_inStr[8] == 'X' &&
+           BLE_inStr[9] >= '0' && BLE_inStr[9] <= '8' &&
+           BLE_inStr[10] == ' ' &&
+           BLE_inStr[11] == 'Y' &&
+           BLE_inStr[12] >= '0' && BLE_inStr[12] <= '5' )
+      {
+//        Serial.print( BLE_inStr[0] );
+//        Serial.print( "," );
+//        Serial.print( "X=" );
+        fx = BLE_inStr[9] - '0' - 4;
+//        Serial.print( fx-4 );
+        fy = BLE_inStr[12] - '0';
+//        Serial.print( ",Y=" );
+//        Serial.println( fy );
+        if ( BLE_inStr[0] == '1' )
+          Metal_54mov( fx, fy, 0, 0 );
+        else
+        if ( BLE_inStr[0] == '2' )
+          Metal2_54mov( fx, fy, 0, 0 );
+      } else
+      // adding 1#25 F1 Xx Yy. cmd.
+      if ( BLE_inStr[4] == ' ' &&
+           BLE_inStr[5] == 'F' &&
+           BLE_inStr[6] == '1' &&
+           BLE_inStr[7] == ' ' &&
+           BLE_inStr[8] == 'X' &&
+           BLE_inStr[9] >= '0' && BLE_inStr[9] <= '8' &&
+           BLE_inStr[10] == ' ' &&
+           BLE_inStr[11] == 'Y' &&
+           BLE_inStr[12] >= '0' && BLE_inStr[12] <= '5' )
+      {
+        fx = BLE_inStr[9] - '0' - 4;
+        fy = BLE_inStr[12] - '0';
+        if ( BLE_inStr[0] == '1' )
+          Metal_54mov( fx, fy, 1, 0 );
+        else
+        if ( BLE_inStr[0] == '2' )
+          Metal2_54mov( fx, fy, 1, 0 );
+      } else
+      // adding 1#25 F2 X0 Y0. cmd.
+      if ( BLE_inStr[4] == ' ' &&
+           BLE_inStr[5] == 'F' &&
+           BLE_inStr[6] == '2' &&
+           BLE_inStr[7] == ' ' &&
+           BLE_inStr[8] == 'X' &&
+           BLE_inStr[9] >= '0' && BLE_inStr[9] <= '8' &&
+           BLE_inStr[10] == ' ' &&
+           BLE_inStr[11] == 'Y' &&
+           BLE_inStr[12] >= '0' && BLE_inStr[12] <= '5' )
+      {
+        fx = BLE_inStr[9] - '0' - 4;
+        fy = BLE_inStr[12] - '0';
+        if ( BLE_inStr[0] == '1' )
+        {
+          Metal_init();
+          delay( 1000 );
+          Metal_54mov( fx, fy, 1, 1 );
+        }
+        else
+        if ( BLE_inStr[0] == '2' )
+        {
+          Metal2_init();
+          delay( 1000 );
+          Metal2_54mov( fx, fy, 1, 1 );
+        }
+      } else
+      {
+        if ( BLE_inStr[0] == '1' )
+          Serial.print( BLE_inStr+1 );
+        else
+        if ( BLE_inStr[0] == '2' )
+          Serial1.print( BLE_inStr+1 );
+      }
+      BLE_inStr[0] = 0;
+    }
+//    else
+//      Serial.print( inLine );
+
+/*    Serial.print( cnt );
+    Serial.print( ":" );
+    Serial.println( inStr );*/
+  }
+  if (Serial.available()) {
+    char c = Serial.read();
+    mySerial.write(c);
+    Serial.write(c);
+  }
+}
+
+/*====================================================================
+  Metal2.ino here, change to global by rename function to Metal2_.
+======================================================================*/
+
+void Metal2_SerialPrintBoth( char* s, bool ret=0 )
+{
+  if ( ret )
+  {
+    Serial1.println( s );
+//    my_Serial.println( s );
+    return;
+  }
+  Serial1.print( s );
+//  my_Serial.print( s );
+}
+
+char i2s( char* buf, int arc )
+{
+  int e=0;
+  buf[0] = 0;
+  if ( arc < 0 )
+  {
+    strcpy( buf, "-" );
+    buf++;
+    arc = 0-arc;
+  }
+  while ( 10<=arc )
+  {
+    char n = ' ';
+    n = arc - (arc/10)*10;
+    arc = arc/10;
+    buf[e] = n + '0';
+    e ++;
+  }
+    char n = ' ';
+    n = arc - (arc/10)*10;
+    arc = arc/10;
+    buf[e] = n + '0';
+    e ++;
+   for ( int i = 0; i< e/2; i++ )
+   {
+      n = buf[i];
+      buf[i] = buf[e-i-1];
+      buf[e-i-1] = n;
+   }
+    buf[e] = 0;
+}
+
+void Metal2_movecharint( char c, int i, bool ret=0 )
+{
+  char buf[80];
+  buf[0] = c;
+  // strcpy( buf, "N  " );
+  buf[1] = 0;
+  i2s( buf+1, i );
+  if ( ret )
+    Metal2_SerialPrintBoth( buf, 1 );
+  else
+  {
+    strcat( buf, " " );
+    Metal2_SerialPrintBoth( buf );
+  }  
+}
+
+void Metal2_moveservo( int n, int arc )
+{
+  Metal2_movecharint( '#', 25 );
+  Metal2_movecharint( 'G', 202);
+  Metal2_movecharint( 'N', n);
+  Metal2_movecharint( 'V', arc, 1 );
+}
+
+#define SEVNO_INIT_0 90
+#define SEVNO_INIT_1 90
+#define SEVNO_INIT_2 36
+
+void Metal2_init( )
+{
+  Metal2_moveservo( 0, SEVNO_INIT_0 );
+  Metal2_moveservo( 1, SEVNO_INIT_1 );
+  Metal2_moveservo( 2, SEVNO_INIT_2 );
+}
+
+void Metal2_pump( bool s )
+{  // ��#n M231 V1\n�� 
+  Metal2_movecharint( '#', 25 );
+  Metal2_movecharint( 'M', 231 );
+  Metal2_movecharint( 'V', s ? 1 : 0, 1 );
+}
+void Metal2_moveto( int x, int y, int z, int f )
+{ // "#25 G0 X00 Y200 Z150 F100\n
+  Metal2_movecharint( '#', 25 );
+  Metal2_SerialPrintBoth( "G0 " );
+  Metal2_movecharint( 'X', x );
+  Metal2_movecharint( 'Y', y );
+  Metal2_movecharint( 'Z', z );
+  Metal2_movecharint( 'F', f, 1 );
+}
+unsigned int Metal2_squence=0, Metal2_sqnum=7*6;//0;
+int Metal2_sqdir = 1, Metal2_sqidx[7*6] =
+{
+  0  , 1 , 2 , 3 , 4 , 5 , 6 ,
+/*7 , 8 , 9 , 10  , 11  , 12  , 13  ,
+14  , 15  , 16  , 17  , 18  , 19  , 20  ,
+21  , 22  , 23  , 24  , 25  , 26  , 27  ,
+28  , 29  , 30  , 31  , 32  , 33  , 34  ,
+35  , 36  , 37  , 38  , 39  , 40  , 41  ,*/
+  13  ,
+20  ,
+27  ,
+34  ,
+41  ,
+//35  , 36  , 37  , 38  , 39  , 40  ,
+40  ,
+39  ,
+38  ,
+37  ,
+36  ,
+35  ,
+28,21,14,7,8 , 9 , 10  , 11  , 12  ,
+19  ,
+26  ,
+33  ,
+// 29  , 30  , 31  , 32  ,
+32, 31,30,29,22,15,16,17,18,25,24,23,
+};
+struct {
+  int x,y,z,f;
+} *Metal2_psq, Metal2_squenceloop[7*6]
+=
+{
+{  -113  , 316.0625  , 105 , 100 },  { -75.16666667  , 316.775 , 105 , 100 },  { -37.33333333  , 317.4875  , 105 , 100 },  { 0.5 , 318.2 , 105 , 100 },  { 38.33333333 , 319.0125  , 105 , 100 },  { 76.16666667 , 319.825 , 105 , 100 },  { 114 , 320.4375  , 105 , 100 },
+{ -114.3  , 281.8625  , 97  , 100 },  { -75.96666667  , 282.445 , 97  , 100 },  { -37.63333333  , 283.0275  , 97  , 100 },  { 0.7 , 283.61  , 97  , 100 },  { 39.03333333 , 284.2725  , 97  , 100 },  { 77.36666667 , 284.935 , 97  , 100 },  { 115.7 , 285.4375  , 97  , 100 },
+{ -115.7  , 247.6625  , 97  , 100 },  { -76.86666667  , 248.115 , 97  , 100 },  { -38.03333333  , 248.5675  , 97  , 100 },  { 0.8 , 249.02  , 97  , 100 },  { 39.63333333 , 249.5325  , 97  , 100 },  { 78.46666667 , 250.045 , 97  , 100 },  { 117.3 , 250.4375  , 97  , 100 },
+{ -117.1  , 213.4625  , 97.5  , 100 },  { -77.76666667  , 213.785 , 97.5  , 100 },  { -38.43333333  , 214.1075  , 97.5  , 100 },  { 0.9 , 214.43  , 97.5  , 100 },  { 40.23333333 , 214.7925  , 97.5  , 100 },  { 79.56666667 , 215.155 , 97.5  , 100 },  { 118.9 , 215.4375  , 97.5  , 100 },
+{ -118.6  , 179.2625  , 92  , 100 },  { -78.76666667  , 179.455 , 92  , 100 },  { -38.93333333  , 179.6475  , 92  , 100 },  { 0.9 , 179.84  , 92  , 100 },  { 40.73333333 , 180.0525  , 92  , 100 },  { 80.56666667 , 180.265 , 92  , 100 },  { 120.4 , 180.4375  , 92  , 100 },
+{ -120  , 145.0625  , 92  , 100 },  { -79.83333333  , 145.125 , 92  , 100 },  { -39.66666667  , 145.1875  , 92  , 100 },  { 0.5 , 145.25  , 92  , 100 },  { 40.66666667 , 145.3125  , 92  , 100 },  { 80.83333333 , 145.375 , 92  , 100 },  { 121 , 145.4375  , 92  , 100 },
+
+//  {0, 200, 150, 100},   // 0, 20cm, 12cm
+//  {100, 250, 200, 100}, // 7.5cm, 25cm, 17cm
+//  {0,0,0,0},
+};
+struct {
+  char x,y,z,f;
+}Metal2_sqoff[7*6] = 
+{
+{ 0 , 0 , 0 , 0 },  { 3 , 0 , 0 , 0 },  { 3 , -2 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , -1 , 0 , 0 },  { 0 , -2 , 0 , 0 },  { 0 , -5 , 0 , 0 },
+{ 4 , 3 , 0 , 0 },  { 4 , 1 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , -9 , 0 , 0 },
+{ 1 , 5 , 0 , 0 },  { 0 , 5 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 1 , -6 , 0 , 0 },
+{ 2 , 4 , 0 , 0 },  { 0 , 5 , -2 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , -2 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , -7 , 0 , 0 },
+{ 1, 2 , 0 , 0 },  { -3 , 3 , 0 , 0 },  { -2 , 2 , 0 , 0 },  { -1 , 1 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , -6 , 0 , 0 },
+{ -3 , 2 , 0 , 0 },  { -3 , 0 , 0 , 0 },  { -3 , -0 , 0 , 0 },  { 0 , -1 , 0 , 0 },  { -3 , -4 , 0 , 0 },  { -2 , -2 , 0 , 0 },  { -2 , -6 , 0 , 0 },
+}, Metal2_sqbackoff[7*6] = 
+{
+{ 0 , 0 , 0 , 0 },  { -2 , 2 , 0 , 0 },  { -2 , 2 , 0 , 0 },  { -2 , 2 , 0 , 0 },  { -3 , 3 , 0 , 0 },  { -4 , 4 , 0 , 0 },  { -5 , 5 , 0 , 0 },
+{ -2 , 0 , 0 , 0 },  { -5 , 3 , 0 , 0 },  { -3 , 0 , 0 , 0 },  { -4 , 0 , 0 , 0 },  { -4 , 0 , 0 , 0 },  { -5 , 0 , 0 , 0 },  { -5 , 4 , 0 , 0 },
+{ 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { -3 , 0 , 0 , 0 },  { -4 , 4 , 0 , 0 },
+{ 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { -1 , 3 , 0 , 0 },  { -4 , 3 , 0 , 0 },
+{ 0 , 0 , 0 , 0 },  { 0 , 1 , 0 , 0 },  { 0.5 , 1 , 0 , 0 },  { 1 , 1 , 0 , 0 },  { 1.5 , 4 , 0 , 0 },  { 2 , 4 , 0 , 0 },  { -3 , 3 , 0 , 0 },
+{ 2 , -2 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { -1 , -1 , 0 , 0 },  { 1 , 5 , 0 , 0 },  { 1 , 2 , 0 , 0 },  { -3 , 3 , 0 , 0 },
+};
+void Metal2_setup() {
+  Metal2_squence = 41; // sqdir = -1;
+  Serial1.begin(115200);  // start serial port at 115200 bps
+  //uArm.setup();
+/*  psq = squenceloop;
+  while ( psq->f != 0 )
+  {  sqnum ++; psq ++;  };*/
+}
+
+char pieces2[9*6] = 
+{
+  ' ',' ',' ',  ' ',' ',' ',   ' ',' ',' ',
+  ' ',' ',' ',  ' ',' ',' ',   ' ',' ',' ',
+  ' ',' ',' ',  ' ',' ',' ',   ' ',' ',' ',
+
+  ' ',' ',' ',  ' ',' ',' ',   ' ',' ',' ',
+  ' ',' ',' ',  ' ',' ',' ',   ' ',' ',' ',
+  ' ',' ',' ',  ' ',' ',' ',   ' ',' ',' ',
+};
+
+struct {
+  char x,y,z;
+} Metal2_eage[2*5] = 
+{
+{ 0 , 0 , 0 },  { 0 , 0 , 0 },
+{ 0 , 0 , 0 },  { 0 , 0 , 0 },
+{ 0 , 0 , 0 },  { 0 , 0 , 0 },
+{ 0 , 0 , 0 },  { 0 , 0 , 0 },
+{ 0 , 0 , 0 },  { 0 , 0 , 0 },
+};
+
+void init_Metal2_eage()
+{
+  if ( Metal2_eage[0].x != 0 ) return;
+  for ( int i=0; i<5; i++ )
+  {
+    Metal2_eage[2*i+0].x = 7 * ( ( Metal2_squenceloop[7*i+7].x - Metal2_squenceloop[7*i+7+6].x ) / 6 ) + Metal2_squenceloop[7*i+7+6].x;
+    Metal2_eage[2*i+1].x = 7 * ( ( Metal2_squenceloop[7*i+7+6].x - Metal2_squenceloop[7*i+7].x ) / 6 ) + Metal2_squenceloop[7*i+7].x;
+
+    Metal2_eage[2*i+0].y = 7 * ( ( Metal2_squenceloop[7*i+7].y - Metal2_squenceloop[7*i+7+6].y ) / 6 ) + Metal2_squenceloop[7*i+7+6].y;
+    Metal2_eage[2*i+1].y = 7 * ( ( Metal2_squenceloop[7*i+7+6].y - Metal2_squenceloop[7*i+7].y ) / 6 ) + Metal2_squenceloop[7*i+7].y;
+
+    int z = 0;
+    for ( int j=0; j<7; j++ )
+      z += Metal2_squenceloop[7*i+7+j].z;
+    
+    Metal2_eage[2*i+0].z = z/7;
+    Metal2_eage[2*i+1].z = z/7;
+  }
+}
+
+struct {
+  char x,y,z;
+} Metal2_54off[9*6] = 
+{
+{ 0 , 0 , 0 },  { 0 , 3 , -4 },  { -4 , 3 , -9 },    { -2 , 4 , -10 },  { 0 , 3 , -7 },  { 6 , 1 , -6 },    { 5 , -1 , -6 },  { 4 , -3 , -5 },  { 0 , 0 , 0 },
+{ -4, -4 , 2 },  { -2 , 5 , 0 },  { -1 , 5 , 0 },    { -4 , 6 , 0 },  { 1 , 7 , 0 },  { 6 , 5 , 0 },    { 7 , 0 , 0 },  { 4 , -3 , 0 },  { 8 , -2 , 0 },
+{ -5 , -2 , 0 },  { -2 , 4 , 0 },  { 0 , 3 , 0 },    { -2 , 3 , 0 },  { -1 , 2 , 0 },  { 7 , 2 , 0 },    { 3 , 2 , 0 },  { 6 , -1 , 0 },  { 8 , 1 , 0 },
+
+{ 0 , 0 , 0 },  { -2 , 0 , 0 },  { 0 , 2 , 0 },    { -2 , 2 , 0 },  { 0 , 2 , 0 },  { 3 , 0 , 0 },    { 2 , -3 , 0 },  { 2 , -5 , 0 },  { 0 , -2 , 0 },
+{ -4 , -3 , 0 },  { 0 , 0 , 0 },  { 0 , 0 , 0 },    { -2 , -1 , 0 },  { 0 , 1 , 0 },  { 0 , -2 , 0 },    { 3 , -2 , 0 },  { 0 , -5 , 0 },  { 0 , -6 , 0 },
+{ 2 , -6 , 0 },  { 0 , -7 , 0 },  { -3 , -2 , 0 },    { -2 , 0 , 0 },  { 0 , 2 , 0 },  { -2 , 0 , 0 },    { -2 , -3 , 0 },  { -2 , -8 , 0 },  { 0 , -10 , 0 },
+};
+
+char Metal2_pumped = ' ';
+void Metal2_54mov( char x, char y, bool autopump, bool off ) {
+  if ( x < -4 || x > 4 ||
+       y < 0 || y > 5 ) return;
+  // do the full board serv position.
+  init_Metal2_eage();
+  // got the servo positions.
+  int servo_x,
+      servo_y,
+      servo_z,
+      servo_f,
+      pumpx = x - (-4),
+      pumpy = 5 - y;
+  if ( x == -4 || x == 4 )
+  {
+    if ( y == 5 ) return; // out of the servo range.
+    x = ( x - (-4) )/8;
+    y = 4 - y;
+    servo_x = Metal2_eage[y*2+x].x;
+    servo_y = Metal2_eage[y*2+x].y;
+    servo_z = Metal2_eage[y*2+x].z + 22;
+    servo_f = Metal2_squenceloop[0].f;
+  } else {
+    x = x - (-3);
+    y = 5 - y;
+    servo_x = Metal2_squenceloop[y*7+x].x;
+    servo_y = Metal2_squenceloop[y*7+x].y;
+    servo_z = Metal2_squenceloop[y*7+x].z + 22;
+    servo_f = Metal2_squenceloop[y*7+x].f;    
+  }
+  // add off.
+  if ( off )
+  {
+    servo_x += Metal2_54off[pumpy*9+pumpx].x;
+    servo_y += Metal2_54off[pumpy*9+pumpx].y;
+    servo_z += Metal2_54off[pumpy*9+pumpx].z;
+  }
+  // mov 2.
+//  Serial.print( "mov" );
+  Metal2_moveto( servo_x, servo_y, servo_z, servo_f );
+  // check pump flag.
+  if ( autopump )
+  {
+//    Serial.print( "pup" );
+     if ( pieces2[pumpy*9+pumpx] != ' ' &&
+          Metal2_pumped == ' ' )
+     {  // pump it.
+        delay( 1000 + 1000 );
+        Metal2_moveto( servo_x, servo_y, servo_z - 2 - 20, servo_f );
+        delay( 1000 );
+        Metal2_pump( 1 );
+        delay( 1000 );
+        Metal2_moveto( servo_x, servo_y, servo_z, servo_f );
+        // record.
+        Metal2_pumped = pieces2[pumpy*9+pumpx];
+        pieces2[pumpy*9+pumpx] = ' ';
+        // 2 arm exchange.
+        if ( pumpy >= 0 && pumpy <= 1 &&
+             pumpx >= 1 && pumpx <= 7 )
+        {
+          setpieces( 8-pumpx + (1-pumpy)*9, ' ' );
+        }
+     } else
+     if ( Metal2_pumped != ' ' &&
+          pieces2[pumpy*9+pumpx] == ' ' )
+     {  // release it.
+        delay( 1000 + 1000 );//1000 * sqrt( (5-pumpy)*(5-pumpy) + (4-pumpx)*(4-pumpx) ) );
+        Metal2_pump( 0 );
+        pieces2[pumpy*9+pumpx] = Metal2_pumped;
+        // 2 arm exchange.
+        if ( pumpy >= 0 && pumpy <= 1 &&
+             pumpx >= 1 && pumpx <= 7 )
+        {
+          setpieces( 8-pumpx + (1-pumpy)*9, Metal2_pumped );
+        }
+        Metal2_pumped = ' ';
+     }
+  }
+}
+
+void Metal2_loop_old( int pass ) {
+  Metal2_psq = Metal2_squenceloop + Metal2_sqidx[Metal2_squence];
+  int xoff = Metal2_sqoff[Metal2_sqidx[Metal2_squence]].x, 
+      yoff = Metal2_sqoff[Metal2_sqidx[Metal2_squence]].y,
+      zoff = Metal2_sqoff[Metal2_sqidx[Metal2_squence]].z //-1;
+                                    + 22;
+  if ( Metal2_sqdir < 0 )
+  {
+    xoff += Metal2_sqbackoff[Metal2_sqidx[Metal2_squence]].x;
+    yoff += Metal2_sqbackoff[Metal2_sqidx[Metal2_squence]].y;
+    zoff += Metal2_sqbackoff[Metal2_sqidx[Metal2_squence]].z;
+  }
+  Metal2_moveto( Metal2_psq->x + xoff, Metal2_psq->y + yoff, Metal2_psq->z + zoff - 2 - (
+            (Metal2_sqidx[Metal2_squence] < 28) ? (3-(Metal2_sqidx[Metal2_squence]/7))/**2*/ : 0), 
+  //        squence - 7*(squence/7) == 0 ?
+  //        psq->f / 7 : // delay( 3000 );
+          Metal2_psq->f );
+  Metal2_squence += Metal2_sqdir;
+  if ( Metal2_squence == 0 )
+    Metal2_sqdir = 1;
+  if ( Metal2_squence >= Metal2_sqnum )
+  {  Metal2_sqdir = -1;  Metal2_squence --; }
+  delay( 1000 );
+  if ( pass == 0 && pass != 1 && pass != 2 )
+  { // not dump at all. for catch pieces.
+    Metal2_pump( 0 );
+    delay( 1000 );
+  }
+  int xdoff = 0,
+      ydoff = 0;
+  if ( Metal2_sqdir > 0 )
+  {
+    switch ( Metal2_squence )
+    {
+      case 5:
+    //    xdoff = -8; ydoff = -5;
+        break;
+    }
+  } else {
+    
+  }
+  if ( pass != 2 )
+  { // not dump at all. for catch pieces.
+  
+  Metal2_moveto( Metal2_psq->x + xoff + xdoff, Metal2_psq->y + yoff + ydoff, Metal2_psq->z + zoff - 2- 20 - (
+            (Metal2_sqidx[Metal2_squence] < 28) ? (4-(Metal2_sqidx[Metal2_squence]/7))/**2*/ : 0), Metal2_psq->f );
+  Metal2_pump( 1 );
+  delay( 1000 );
+  Metal2_moveto( Metal2_psq->x + xoff, Metal2_psq->y + yoff, Metal2_psq->z + zoff - 2- (
+            (Metal2_sqidx[Metal2_squence] < 28) ? (3-(Metal2_sqidx[Metal2_squence]/7))/**2*/ : 0), Metal2_psq->f );
+  delay( 1000 );
+} }
+void Metal2_loop() {
+  Metal2_loop_old( 0 );
+}
+/*    switch(squence%2)
+    {
+        case 0: //uArm.moveTo(0,200,150,100);
+                // Serial.print("#25 G0 X00 Y200 Z150 F100\n");
+                moveto( 0, 200, 150, 100 ); // 0, 20cm, 12cm
+                // moveservo( 0, 80 );
+                squence = 1;
+                break;
+        case 1: //uArm.moveTo(100,250,200,100);
+                /* Serial.print("#25 G0 X100 Y250 Z200 F100\n");
+                SerialPrintBoth("#25 ");
+                SerialPrintBoth("G202 ");
+                SerialPrintBoth("N0 ");
+                SerialPrintBoth("V100",1);*
+                moveto( 100, 250, 200, 100 ); // 7.5cm, 25cm, 17cm
+                // moveservo( 0, 100 );
+                squence = 0;
+                break;
+    }
+  delay(1000);
+//    squence++; 
+}*/
+
+/*====================================================================
+  Metal.ino moved to here, as global.
+======================================================================*/
+
+void SerialPrintBoth( char* s, bool ret=0 )
+{
+  if ( ret )
+  {
+    Serial.println( s );
+//    my_Serial.println( s );
+    return;
+  }
+  Serial.print( s );
+//  my_Serial.print( s );
+}
+/* duplicate.
+char i2s( char* buf, int arc )
+{
+  int e=0;
+  buf[0] = 0;
+  if ( arc < 0 )
+  {
+    strcpy( buf, "-" );
+    buf++;
+    arc = 0-arc;
+  }
+  while ( 10<=arc )
+  {
+    char n = ' ';
+    n = arc - (arc/10)*10;
+    arc = arc/10;
+    buf[e] = n + '0';
+    e ++;
+  }
+    char n = ' ';
+    n = arc - (arc/10)*10;
+    arc = arc/10;
+    buf[e] = n + '0';
+    e ++;
+   for ( int i = 0; i< e/2; i++ )
+   {
+      n = buf[i];
+      buf[i] = buf[e-i-1];
+      buf[e-i-1] = n;
+   }
+    buf[e] = 0;
+}
+*/
+void movecharint( char c, int i, bool ret=0 )
+{
+  char buf[80];
+  buf[0] = c;
+  // strcpy( buf, "N  " );
+  buf[1] = 0;
+  i2s( buf+1, i );
+  if ( ret )
+    SerialPrintBoth( buf, 1 );
+  else
+  {
+    strcat( buf, " " );
+    SerialPrintBoth( buf );
+  }  
+}
+void moveservo( int n, int arc )
+{
+  movecharint( '#', 25 );
+  movecharint( 'G', 202);
+  movecharint( 'N', n);
+  movecharint( 'V', arc, 1 );
+}
+void Metal_init( )
+{
+  moveservo( 0, SEVNO_INIT_0 );
+  moveservo( 1, SEVNO_INIT_1 );
+  moveservo( 2, SEVNO_INIT_2 );
+}
+void pump( bool s )
+{  // 鈥?n M231 V1\n鈥?
+  movecharint( '#', 25 );
+  movecharint( 'M', 231 );
+  movecharint( 'V', s ? 1 : 0, 1 );
+}
+void moveto( int x, int y, int z, int f )
+{ // "#25 G0 X00 Y200 Z150 F100\n
+  movecharint( '#', 25 );
+  SerialPrintBoth( "G0 " );
+  movecharint( 'X', x );
+  movecharint( 'Y', y );
+  movecharint( 'Z', z );
+  movecharint( 'F', f, 1 );
+}
+unsigned int squence=0, sqnum=7*6;//0;
+int sqdir = 1, sqidx[7*6] =
+{
+  0  , 1 , 2 , 3 , 4 , 5 , 6 ,
+/*7 , 8 , 9 , 10  , 11  , 12  , 13  ,
+14  , 15  , 16  , 17  , 18  , 19  , 20  ,
+21  , 22  , 23  , 24  , 25  , 26  , 27  ,
+28  , 29  , 30  , 31  , 32  , 33  , 34  ,
+35  , 36  , 37  , 38  , 39  , 40  , 41  ,*/
+  13  ,
+20  ,
+27  ,
+34  ,
+41  ,
+//35  , 36  , 37  , 38  , 39  , 40  ,
+40  ,
+39  ,
+38  ,
+37  ,
+36  ,
+35  ,
+28,21,14,7,8 , 9 , 10  , 11  , 12  ,
+19  ,
+26  ,
+33  ,
+// 29  , 30  , 31  , 32  ,
+32, 31,30,29,22,15,16,17,18,25,24,23,
+};
+struct {
+  int x,y,z,f;
+} *psq, squenceloop[7*6]
+=
+{
+{  -111  , 317.5 , 100 , 100 },  { -71 , 317.5 , 100 , 100 },  { -31 , 317.5 , 100 , 100 },  { 9 , 317.5 , 100 , 100 },  { 49  , 317.5 , 100 , 100 },  { 89  , 317.5 , 100 , 100 },  { 129 , 317.5 , 100 , 100 },
+{ -111  , 282 , 100 , 100 },  { -71 , 282 , 100 , 100 },  { -31 , 282 , 100 , 100 },  { 9 , 282 , 100 , 100 },  { 49  , 282 , 100 , 100 },  { 89  , 282 , 100 , 100 },  { 129 , 282 , 100 , 100 },
+{ -111  , 246.5 , 100 , 100 },  { -71 , 246.5 , 100 , 100 },  { -31 , 246.5 , 100 , 100 },  { 9 , 246.5 , 100 , 100 },  { 49  , 246.5 , 100 , 100 },  { 89  , 246.5 , 100 , 100 },  { 129 , 246.5 , 100 , 100 },
+{ -111  , 211 , 100 , 100 },  { -71 , 211 , 100 , 100 },  { -31 , 211 , 100 , 100 },  { 9 , 211 , 100 , 100 },  { 49  , 211 , 100 , 100 },  { 89  , 211 , 100 , 100 },  { 129 , 211 , 100 , 100 },
+{ -111  , 175.5 , 100 , 100 },  { -71 , 175.5 , 100 , 100 },  { -31 , 175.5 , 100 , 100 },  { 9 , 175.5 , 100 , 100 },  { 49  , 175.5 , 100 , 100 },  { 89  , 175.5 , 100 , 100 },  { 129 , 175.5 , 100 , 100 },
+{ -111  , 140 , 100 , 100 },  { -71 , 140 , 100 , 100 },  { -31 , 140 , 100 , 100 },  { 9 , 140 , 100 , 100 },  { 49  , 140 , 100 , 100 },  { 89  , 140 , 100 , 100 },  { 129 , 140 , 100 , 100 },
+
+//  {0, 200, 150, 100},   // 0, 20cm, 12cm
+//  {100, 250, 200, 100}, // 7.5cm, 25cm, 17cm
+//  {0,0,0,0},
+}, sqoff[7*6] = 
+{
+{  2 , 3 , -1  , 0 },  { 2 , 4 , -1  , 0 },  { 3 , 3 , -1  , 0 },  { -1  , 1 , -2  , 0 },  { -1  , 1 , -1  , 0 },  { 1 , 1 , -1  , 0 },  { 1 , -1  , -1  , 0 },
+{ 7 , 5 , 0 , 0 },  { 4 , 3 , 0 , 0 },  { 1 , 1 , 0 , 0 },  { -2  , 1 , 0 , 0 },  { 0 , 2 , 0 , 0 },  { -4  , -1  , 0 , 0 },  { -3  , -4  , 0 , 0 },
+{ 8 , 5 , 0 , 0 },  { -1  , 10  , 0 , 0 },  { 6 , 5 , 0 , 0 },  { -2  , 3 , 0 , 0 },  { -2  , 2 , 0 , 0 },  { -2  , -3  , 0 , 0 },  { -4  , -4  , 0 , 0 },
+{ 6 , 3 , 0 , 0 },  { -1  , 8 , 0 , 0 },  { -4  , 4 , 0 , 0 },  { -5  , 2 , 0 , 0 },  { -2  , 1 , 0 , 0 },  { 0 , -4  , 0 , 0 },  { -3  , -5  , 0 , 0 },
+{ 4 , 2 , 0 , 0 },  { -4  , 7 , 0 , 0 },  { -5  , 4 , 0 , 0 },  { -2  , 0 , 0 , 0 },  { -4  , 3 , 0 , 0 },  { -1  , -3  , 0 , 0 },  { -4  , -6  , 0 , 0 },
+{ 2 , 0 , 0 , 0 },  { -6  , 2 , 0 , 0 },  { -5  , 1 , 0 , 0 },  { -5  , 2 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { -2  , -3  , 0 , 0 },  { -4  , -8  , 0 , 0 },
+}, sqbackoff[7*6] = 
+{
+{  -2  , 0 , 0 , 0 },  { -3  , 0 , 0 , 0 },  { -4  , 0 , 0 , 0 },  { -5  , 1 , 0 , 0 },  { -6  , 2 , 0 , 0 },  { -7  , 1 , 0 , 0 },  { -8  , 0 , 0 , 0 },
+{ -5  , 0 , 0 , 0 },  { -7  , 1 , 0 , 0 },  { -6  , 1 , 0 , 0 },  { -5  , 1 , 0 , 0 },  { -5  , 1 , 0 , 0 },  { -3  , 3 , 0 , 0 },  { -3  , 3 , 0 , 0 },
+{ -8  , -4  , -2  , 0 },  { -6  , 0 , -2  , 0 },  { -9  , 0 , 0 , 0 },  { -2  , 0 , 0 , 0 },  { -3  , 3 , 0 , 0 },  { -2  , 4 , 0 , 0 },  { -2  , 2 , 0 , 0 },
+{ -8  , -3  , -2  , 0 },  { -4  , -5  , -2  , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 2 , 2 , 0 , 0 },  { -3  , 3 , 0 , 0 },  { -2  , 2 , 0 , 0 },
+{ -6  , -2  , 0 , 0 },  { -2  , -5  , 0 , 0 },  { 3 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 2 , 0 , 0 , 0 },  { 0 , 2 , 0 , 0 },  { 0 , 1 , 0 , 0 },
+{ -3  , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 0 , 0 , 0 },  { 0 , 1 , 0 , 0 },
+};
+void Metal1_setup() {
+  squence = 8; // sqdir = -1;
+  Serial.begin(115200);  // start serial port at 115200 bps
+//  my_Serial.begin(115200);
+  //uArm.setup();
+/*  psq = squenceloop;
+  while ( psq->f != 0 )
+  {  sqnum ++; psq ++;  };*/
+}
+
+char pieces[9*6] = 
+{
+  ' ',' ',' ',  ' ',' ',' ',   ' ',' ',' ',
+  ' ',' ',' ',  ' ',' ',' ',   ' ',' ',' ',
+  ' ',' ',' ',  ' ',' ',' ',   ' ',' ',' ',
+
+  ' ',' ',' ',  ' ',' ',' ',   ' ',' ',' ',
+  ' ',' ',' ',  ' ',' ',' ',   ' ',' ',' ',
+  '1','2','3',  '4','5','6',   '7','8','9',
+};
+
+struct {
+  int x,y,z;
+} eage[2*5] = 
+{
+{ 0 , 0 , 0 },  { 0 , 0 , 0 },
+{ 0 , 0 , 0 },  { 0 , 0 , 0 },
+{ 0 , 0 , 0 },  { 0 , 0 , 0 },
+{ 0 , 0 , 0 },  { 0 , 0 , 0 },
+{ 0 , 0 , 0 },  { 0 , 0 , 0 },
+};
+
+void init_eage()
+{
+  if ( eage[0].x != 0 ) return;
+  for ( int i=0; i<5; i++ )
+  {
+    eage[2*i+0].x = 7 * ( ( squenceloop[7*i+7].x - squenceloop[7*i+7+6].x ) / 6 ) + squenceloop[7*i+7+6].x;
+    eage[2*i+1].x = 7 * ( ( squenceloop[7*i+7+6].x - squenceloop[7*i+7].x ) / 6 ) + squenceloop[7*i+7].x;
+
+    eage[2*i+0].y = 7 * ( ( squenceloop[7*i+7].y - squenceloop[7*i+7+6].y ) / 6 ) + squenceloop[7*i+7+6].y;
+    eage[2*i+1].y = 7 * ( ( squenceloop[7*i+7+6].y - squenceloop[7*i+7].y ) / 6 ) + squenceloop[7*i+7].y;
+
+    int z = 0;
+    for ( int j=0; j<7; j++ )
+      z += squenceloop[7*i+7+j].z;
+    
+    eage[2*i+0].z = z/7;
+    eage[2*i+1].z = z/7;
+  }
+}
+
+struct {
+  int x,y,z;
+} Metal_54off[9*6] = 
+{
+{ 0 , 0 , 0 },  { 4 , 3 , -2 },  { 2 , 3 , -2 },    { 0 , 4 , -1 },  { 3 , 3 , -2 },  { 2 , 3 , -4 },    { -2 , -3 , -3 },  { -1 , -2 , -5 },  { 2 , 2 , 0 },
+{ 4 , 2 , -1 },  { 2 , 3 , -3 },  { 2 , 2 , 0 },    { -2 , 3 , 0 },  { 3 , 1 , 0 },  { 0 , 0 , 0 },    { -3 , -2 , 0 },  { -4 , -3 , -4 },  { -3 , -6 , -3 },
+{ 3 , 3 , 0 },  { 0 , 3 , 0 },  { 0 , 2.5 , 0 },    { -2 , 3 , 0 },  { 1 , 3 , 0 },  { -1, 1 , 0 },    { 0 , -2 , 0 },  { -3 , -2 , 0 },  { -4 , -7 , 0 },
+
+{ 0 , 4 , 0 },  { 3 , 1 , 0 },  { 0 , 2 , 0 },    { 0 , 0 , 0 },  { 1 , 3 , 0 },  { 0 , -1 , 0 },    { 0 , -5 , 0 },  { 0 , -9 , 0 },  { -4 , -7 , 0 },
+{ 4.5 , 1 , 0 },  { 2 , 0 , 0 },  { 0 , 0 , 0 },    { -1 , 4 , 0 },  { 0 , 2 , 0 },  { 0 , 0 , 0 },    { -5 , -6 , 0 },  { -6 , -8 , 0 },  { -5 , -8 , 0 },
+{ 0 , 0 , 0 },  { -3 , 2 , 0 },  { -5 , 4 , 0 },    { -2 , 4 , 0 },  { 0 , 2 , 0 },  { 0 , 0 , 0 },    { -2 , -5 , 0 },  { -4 , -8 , 0 },  { -7 , -10 , 0 },
+};
+
+char pumped = ' ';
+void setpieces( char x, char c )
+{ // exchange 2 arm pieces.
+  pieces[x] = c;
+}
+void Metal_54mov( char x, char y, bool autopump, bool off ) {
+  if ( x < -4 || x > 4 ||
+       y < 0 || y > 5 ) return;
+  // do the full board serv position.
+  init_eage();
+  // got the servo positions.
+  int servo_x,
+      servo_y,
+      servo_z,
+      servo_f,
+      pumpx = x - (-4),
+      pumpy = 5 - y;
+  if ( x == -4 || x == 4 )
+  {
+    if ( y == 5 ) return; // out of the servo range.
+    x = ( x - (-4) )/8;
+    y = 4 - y;
+    servo_x = eage[y*2+x].x;
+    servo_y = eage[y*2+x].y;
+    servo_z = eage[y*2+x].z;
+    servo_f = squenceloop[0].f;
+  } else {
+    x = x - (-3);
+    y = 5 - y;
+    servo_x = squenceloop[y*7+x].x;
+    servo_y = squenceloop[y*7+x].y;
+    servo_z = squenceloop[y*7+x].z;
+    servo_f = squenceloop[y*7+x].f;    
+  }
+  // add off.
+  if ( off )
+  {
+    servo_x += Metal_54off[pumpy*9+pumpx].x;
+    servo_y += Metal_54off[pumpy*9+pumpx].y;
+    servo_z += Metal_54off[pumpy*9+pumpx].z;
+  }
+  // mov 2.
+  moveto( servo_x, servo_y, servo_z, servo_f );
+  if ( autopump )
+  {
+//    Serial.print( "pp1" );
+     if ( pieces[pumpy*9+pumpx] != ' ' &&
+          pumped == ' ' )
+     {  // pump it.
+        delay( 1000 + 1000  );
+        moveto( servo_x, servo_y, servo_z - 2 - 20, servo_f );
+        delay( 1000 );
+        pump( 1 );
+        delay( 1000 );
+        moveto( servo_x, servo_y, servo_z, servo_f );
+        // record.
+        pumped = pieces[pumpy*9+pumpx];
+        if ( pumpy != 5 )
+          pieces[pumpy*9+pumpx] = ' ';
+        // 2 arm exchange.
+        if ( pumpy >= 0 && pumpy <= 1 &&
+             pumpx >= 1 && pumpx <= 7 )
+        {
+          pieces2[ 8-pumpx + (1-pumpy)*9 ] = pieces[pumpy*9+pumpx];
+        }
+     } else
+     if ( pumped != ' ' &&
+          pieces[pumpy*9+pumpx] == ' ' )
+     {  // release it.
+        delay( 1000 + 1000 );//1000 * sqrt( (5-pumpy)*(5-pumpy) + (4-pumpx)*(4-pumpx) ) );
+        pump( 0 );
+        pieces[pumpy*9+pumpx] = pumped;
+        // 2 arm exchange.
+        if ( pumpy >= 0 && pumpy <= 1 &&
+             pumpx >= 1 && pumpx <= 7 )
+        {
+          pieces2[ 8-pumpx + (1-pumpy)*9 ] = pumped;
+        }
+        pumped = ' ';
+     }
+  }
+}
+
+void Metal1_loop() {
+  psq = squenceloop + sqidx[squence];
+  int xoff = sqoff[sqidx[squence]].x, 
+      yoff = sqoff[sqidx[squence]].y,
+      zoff = sqoff[sqidx[squence]].z-1;
+  if ( sqdir < 0 )
+  {
+    xoff += sqbackoff[sqidx[squence]].x;
+    yoff += sqbackoff[sqidx[squence]].y;
+    zoff += sqbackoff[sqidx[squence]].z;
+  }
+  moveto( psq->x + xoff, psq->y + yoff, psq->z + zoff - 2 - (
+            (sqidx[squence] < 28) ? (3-(sqidx[squence]/7))/**2*/ : 0), 
+  //        squence - 7*(squence/7) == 0 ?
+  //        psq->f / 7 : // delay( 3000 );
+          psq->f );
+  squence += sqdir;
+  if ( squence == 0 )
+    sqdir = 1;
+  if ( squence >= sqnum )
+  {  sqdir = -1;  squence --; }
+  delay( 1000 );
+  pump( 0 );
+  delay( 1000 );
+  int xdoff = 0,
+      ydoff = 0;
+  if ( sqdir > 0 )
+  {
+    switch ( squence )
+    {
+      case 5:
+        xdoff = -8; ydoff = -5;
+        break;
+    }
+  } else {
+    
+  }
+  moveto( psq->x + xoff + xdoff, psq->y + yoff + ydoff, psq->z + zoff - 2- 20 - (
+            (sqidx[squence] < 28) ? (4-(sqidx[squence]/7))/**2*/ : 0), psq->f );
+  pump( 1 );
+  delay( 1000 );
+  moveto( psq->x + xoff, psq->y + yoff, psq->z + zoff - 2- (
+            (sqidx[squence] < 28) ? (3-(sqidx[squence]/7))/**2*/ : 0), psq->f );
+  delay( 1000 );
+}
+/*    switch(squence%2)
+    {
+        case 0: //uArm.moveTo(0,200,150,100);
+                // Serial.print("#25 G0 X00 Y200 Z150 F100\n");
+                moveto( 0, 200, 150, 100 ); // 0, 20cm, 12cm
+                // moveservo( 0, 80 );
+                squence = 1;
+                break;
+        case 1: //uArm.moveTo(100,250,200,100);
+                /* Serial.print("#25 G0 X100 Y250 Z200 F100\n");
+                SerialPrintBoth("#25 ");
+                SerialPrintBoth("G202 ");
+                SerialPrintBoth("N0 ");
+                SerialPrintBoth("V100",1);*
+                moveto( 100, 250, 200, 100 ); // 7.5cm, 25cm, 17cm
+                // moveservo( 0, 100 );
+                squence = 0;
+                break;
+    }
+  delay(1000);
+//    squence++; 
+}*/
+
+//==== setup() & loop() =================================================
+
+void setup() { 
+  BLE_setup();
+//  Metal1_setup();
+//  Metal2_setup();
+  Metal_init();
+  Metal2_init(); 
+  }
+
+void loop() { 
+  BLE_loop();
+//  Metal1_loop();
+//  Metal2_loop(); 
+  }
+
+//===== soduko method ==================================================
+
+void Metal3_90mov( char n, char x, char y )
+{
+  Metal_init();
+  delay( 1000 );
+  Metal_54mov( n-4, 0, 1, 1 ); // get number.
+  delay( 1000 );
+  Metal_init();
+  delay( 1000 );
+
+  char fx = x,
+       fy = y;
+       
+        if ( fy <= 5 )
+        {
+          if ( fy == 5 && fx == -4 )
+          {
+              Metal_54mov( -3, 5, 1, 1 ); // goto xy.
+              delay( 1000 );
+              Metal_54mov( -3, 3, 0, 0 );
+            //  delay( 2000 );
+            // arm2 to get.
+            //  Metal2_init();
+              Metal2_54mov( 0, 0, 1, 0 ); // goto xy.
+              delay( 1000 );
+              Metal2_54mov( 3, 4, 1, 1 ); // goto xy.
+            // arm2 goto xy.
+            //  Metal2_init();
+              delay( 1000 );
+              Metal2_54mov( 0, 0, 0, 0 ); // goto xy.
+              delay( 1000 );
+              Metal2_54mov( 4, 4, 1, 1 ); // goto xy.
+              delay( 1000 );
+              Metal2_54mov( 4, 2, 1, 1 ); // goto xy.
+          } else
+          if ( fy == 5 && fx == 4 )
+          {
+              Metal_54mov( 3, 5, 1, 1 ); // goto xy.
+              delay( 1000 );
+              Metal_54mov( 3, 3, 0, 0 );
+            //  delay( 2000 );
+            // arm2 to get.
+            //  Metal2_init();
+              Metal2_54mov( 0, 0, 1, 0 ); // goto xy.
+              delay( 1000 );
+              Metal2_54mov( -3, 4, 1, 1 ); // goto xy.
+            // arm2 goto xy.
+            //  Metal2_init();
+              delay( 1000 );
+              Metal2_54mov( 0, 0, 0, 0 ); // goto xy.
+              delay( 1000 );
+              Metal2_54mov( -4, 4, 1, 1 ); // goto xy.
+              delay( 1000 );
+              Metal2_54mov( -4, 2, 1, 1 ); // goto xy.
+          } else
+          {
+            Metal_54mov( fx, fy, 1, 1 ); // goto xy.
+          }
+        } else
+        {
+          // arm2 area.
+          Metal_54mov( fx == -4 ? -3 :
+                       fx == 4 ? 3 : 
+                       fx, 5, 1, 1 ); // goto xy.
+          // init.
+          delay( 1000 );
+          // Metal_init();
+          Metal_54mov( fx, 3, 0, 0 ); // goto xy.
+          // arm2 to get.
+          // Metal2_init();
+          Metal2_54mov( 0, 4, 0, 0 ); // goto xy.
+          delay( 1000 );
+          Metal2_54mov( fx == -4 ? 3 :
+                        fx == 4 ? -3 : 
+                        -fx, 4, 1, 1 ); // goto xy.
+          delay( 1000 );
+          // arm2 goto xy.
+          // Metal2_init();
+          Metal2_54mov( 0, 9-fy, 0, 0 ); // goto xy.
+          delay( 1000 );
+          Metal2_54mov( -fx, 9-fy, 1, 1 ); // goto xy.
+        }
+}
+
+//------------------------------
+
+char looparray_bat4[3*4*4+1] =
+"\
+101102103104\
+211212213214\
+321322323324\
+431432433434\
+";
+
+void Metal_Shell_Bat3( char n, char x, char y ) 
+{
+    char fx = x - '0' - 4;
+    char fy = y - '0';
+    Metal3_90mov( n - '1', fx, fy );
+    delay( 1000 );    
+}
+
+void Metal_Action_bat1( void )
+{
+  // test loop failed, try another.
+  // strcpy( BLE_inLine, "m3#25 F1 X0 Y9\n" );
+  // BLE_loop();
+  Metal_init();
+  delay( 1000 );
+  // testing success, rem it. at 2017/3/3
+  // Metal_Shell_Bat3( '1','0','2' );
+  int i;
+  Random4x4();
+  for ( i=0; i<4*4; i++ )
+  {
+    Metal_Shell_Bat3( looparray_bat4[i*3+0],
+                      looparray_bat4[i*3+1],
+                      looparray_bat4[i*3+2] );
+  }
+  Metal_init();
+  delay( 1000 );
+}
+
+//----- random 4x4
+
+void writearray4x4( char n, int i )
+{
+  looparray_bat4[3*i] = n;
+}
+
+char readarray4x4( int i )
+{
+  return looparray_bat4[3*i];
+}
+
+void writearray4x4( char n, char x, char y )
+{
+  int i= x-'0' + (y-'1')*4;
+  looparray_bat4[3*i] = n;
+}
+
+char readarray4x4( char x, char y )
+{
+  int i= x-'0' + (y-'1')*4;
+  return looparray_bat4[3*i];
+}
+
+char Random4( char* a4 )
+{
+  int len = strlen( a4 );
+  return a4[random( len )];  
+}
+
+char* dela4( char* a4, char c )
+{
+  int len = strlen( a4 );
+  Serial.print( a4 );
+  Serial.print( "," );
+  Serial.print( c );
+  Serial.print( "," );
+  for ( int i=0; i<len; i++ )
+  {
+    if ( a4[i] == c )
+    {
+      // found.
+      strcpy( a4+i, a4+i+1 );
+      break;
+    }
+  }
+  Serial.println( a4 );
+  return a4;
+}
+
+void Random4x4( void )
+{
+  char a4[5];
+  // 0
+  strcpy( a4, "1234" );
+  writearray4x4( Random4( a4 ), 0 );
+  // 1
+  dela4( a4, readarray4x4( 0 ) );
+  writearray4x4( Random4( a4 ), 1 );
+  // 2
+  dela4( a4, readarray4x4( 1 ) );
+  writearray4x4( Random4( a4 ), 2 );
+  // 3
+  dela4( a4, readarray4x4( 2 ) );
+  writearray4x4( a4[0], 3 );
+
+  // get line.
+  a4[0] = readarray4x4( 2 );
+  a4[1] = readarray4x4( 3 );
+  a4[2] = 0;
+  // 4
+  writearray4x4( Random4( a4 ), 4 );
+  // 5
+  dela4( a4, readarray4x4( 4 ) );
+  writearray4x4( a4[0], 5 );
+  // get line.
+  a4[0] = readarray4x4( 0 );
+  a4[1] = readarray4x4( 1 );
+  a4[2] = 0;
+  // 6
+  writearray4x4( Random4( a4 ), 6 );
+  // 7
+  dela4( a4, readarray4x4( 6 ) );
+  writearray4x4( a4[0], 7 );  
+
+  // get line.
+  a4[0] = readarray4x4( 1 );
+  a4[1] = readarray4x4( 5 );
+  a4[2] = 0;
+  // 8
+  writearray4x4( Random4( a4 ), 8 );
+  // 12
+  dela4( a4, readarray4x4( 8 ) );
+  writearray4x4( a4[0], 12 );  
+  // get line.
+  a4[0] = readarray4x4( 0 );
+  a4[1] = readarray4x4( 4 );
+  a4[2] = 0;
+  // 9
+  writearray4x4( Random4( a4 ), 9 );
+  // 13
+  dela4( a4, readarray4x4( 9 ) );
+  writearray4x4( a4[0], 13 );  
+
+loc_a4_zero10:    
+  // get line.
+  a4[0] = readarray4x4( 3 );
+  a4[1] = readarray4x4( 7 );
+  a4[2] = 0;
+  // 10
+  dela4( a4, readarray4x4( 8 ) );
+  dela4( a4, readarray4x4( 9 ) );
+  // check zero.
+  if ( strlen( a4 ) == 0 )
+  { // change 9 & 13
+    a4[0] = readarray4x4( 9 );
+    writearray4x4( readarray4x4( 13 ), 9 );
+    writearray4x4( a4[0], 13 );
+    a4[1] = 0;    
+  }
+  writearray4x4( Random4( a4 ), 10 );
+  // 14
+  a4[0] = readarray4x4( 3 );
+  a4[1] = readarray4x4( 7 );
+  a4[2] = 0;
+  dela4( a4, readarray4x4( 10 ) );
+  writearray4x4( a4[0], 14 );
+
+  // get line.
+  a4[0] = readarray4x4( 2 );
+  a4[1] = readarray4x4( 6 );
+  a4[2] = 0;
+  // 11
+  dela4( a4, readarray4x4( 8 ) );
+  dela4( a4, readarray4x4( 9 ) );  
+  dela4( a4, readarray4x4( 10 ) );
+  if ( strlen( a4 ) == 0 )
+  { // change 9 & 13
+    a4[0] = readarray4x4( 9 );
+    writearray4x4( readarray4x4( 13 ), 9 );
+    writearray4x4( a4[0], 13 );
+    a4[1] = 0;    
+    goto loc_a4_zero10;
+  }
+  writearray4x4( Random4( a4 ), 11 );
+  // 15
+  a4[0] = readarray4x4( 2 );
+  a4[1] = readarray4x4( 6 );
+  a4[2] = 0;
+  dela4( a4, readarray4x4( 11 ) );
+  writearray4x4( a4[0], 15 );  
+}
+
+//----- new adaption for arm2 , flamedoku random 4x4.
+
+struct {
+  int x, y, z;
+} DokuArm2_off = { 0, 0, 0 }; 
+
+int Metal_Action_bat2_param_xyz( int next, int* off )
+{
+  if ( next < 2 ) return 0;
+  if ( BLE_inStr[ next ] != ',' ) return 0;  
+  if ( off == NULL ) return 0;
+  next ++;
+  * off = 0;
+loc_loop_next_0_9:
+  if ( BLE_inStr[next] >= '0' &&
+       BLE_inStr[next] <= '9' )
+  {  
+    *off += BLE_inStr[next]-'0';
+    next ++;
+    if ( BLE_inStr[next] >= '0' &&
+         BLE_inStr[next] <= '9' )
+    { 
+      *off *= 10; 
+      goto loc_loop_next_0_9;
+    }
+  }
+  return next;
+}
+
+void Metal_Action_bat2_param_off( int next )
+{
+  if ( next < 2 ) return;
+  if ( BLE_inStr[ next ] != ',' )
+    return;
+  // got offset;
+  next = Metal_Action_bat2_param_xyz( next, &(DokuArm2_off.x) );
+  if ( BLE_inStr[next] == '-' )
+  { DokuArm2_off.x = 0-DokuArm2_off.x; next ++;}
+  next = Metal_Action_bat2_param_xyz( next, &(DokuArm2_off.y) );
+  if ( BLE_inStr[next] == '-' )
+  { DokuArm2_off.y = 0-DokuArm2_off.y; next ++;}
+  next = Metal_Action_bat2_param_xyz( next, &(DokuArm2_off.z) );
+  if ( BLE_inStr[next] == '-' )
+  { DokuArm2_off.z = 0-DokuArm2_off.z; next ++;}
+}
+
+int Metal_Action_bat2_param( void )
+{
+  int i = 0,
+      next = 0;
+  if ( BLE_inStr[2] >= '0' &&
+       BLE_inStr[2] <= '9' )
+  {
+    i = BLE_inStr[2] - '0';
+    next = 2;
+  if ( BLE_inStr[3] >= '0' &&
+       BLE_inStr[3] <= '9' )
+  {
+    i = i*10;
+    i += BLE_inStr[3] - '0';
+    next = 3;
+    if ( BLE_inStr[4] >= '0' &&
+         BLE_inStr[4] <= '9' )
+         {
+            i = i*10;
+            i += BLE_inStr[4] - '0';  
+            next = 4;
+         }
+  } }
+  Metal_Action_bat2_param_off( next+1 );
+  return i;
+}
+
+struct {
+  char x,y,z;
+} FlameDoku_Metal2_squenceloop[7*6]
+=
+{
+{  -28, -8, 0 },{  -30, -5, 0 },{  -32, -2, 0 },   {  -30, 1, 0 },   {  -20, 2, 0 },{  -20, 5, 0 },{  -20, 5, 0 },
+{  -28, -8, 0 },{  -30, -5, 0 },{  -32, -2, 0 },   {  -30, 1, 0 },   {  -20, 2, 0 },{  -20, 5, 0 },{  -20, 5, 0 },
+{  -18, -6, 0 },{  -30, -5, 0 },{  -32, -2, 0 },   {  -30, 1, 0 },   {  -20, 2, 0 },{  -20, 5, 0 },{  -20, 5, 0 },
+{  -21, -8, 0 },{  -20, -5, 0 },{  -23, -2, 0 },   {  -21, 1, 0 },   {  -17, 7, 0 },{  -17, 10, 0 },{  -10, 7, 0 },
+{  -20, -13, 0 },{  -19, -4, 0 },{  -17, -1, 0 },   {  -15, 2, 0 },   {  -15, 5, 0 },{  -13, 8, 0 },{  -9, 8, 5 },
+{  -15, -11, 0 },{  -16, -7, 0 },{  -19, -4, 0 },   {  -14, 3, 0 },   {  -8, 5, 0 },{  -6, 7, 0 },{  -8, 7, 5 },
+
+//  {0, 200, 150, 100},   // 0, 20cm, 12cm
+//  {100, 250, 200, 100}, // 7.5cm, 25cm, 17cm
+//  {0,0,0,0},
+};
+
+void Get_FlameDoku_Metal2_squenceloop( int idx, int* x, int* y, int* z )
+{
+  if ( x == NULL || y == NULL || z == NULL )
+    return;
+  if ( FlameDoku_Metal2_squenceloop[idx].x == 0 &&
+       FlameDoku_Metal2_squenceloop[idx].y == 0 &&
+       FlameDoku_Metal2_squenceloop[idx].z == 0 )
+  {
+    *x = Metal2_squenceloop[idx].x + DokuArm2_off.x;
+    *y = Metal2_squenceloop[idx].y + DokuArm2_off.y;
+    *z = Metal2_squenceloop[idx].z + DokuArm2_off.z;    
+  } else
+  {
+    *x = Metal2_squenceloop[idx].x + DokuArm2_off.x + FlameDoku_Metal2_squenceloop[idx].x;
+    *y = Metal2_squenceloop[idx].y + DokuArm2_off.y + FlameDoku_Metal2_squenceloop[idx].y;
+    *z = Metal2_squenceloop[idx].z + DokuArm2_off.z + FlameDoku_Metal2_squenceloop[idx].z;
+  }
+}
+
+void Metal_Action_bat2_getp( int getp, int pass )
+{
+  Metal2_init();
+  delay( 1000 );
+  // save loop var.
+  unsigned int old_Metal2_squence = Metal2_squence,
+  param_Metal2_squence = getp == -1 ? Metal_Action_bat2_param() : getp;
+  int old_x = Metal2_squenceloop[0].x,
+      old_y = Metal2_squenceloop[0].y,
+      old_z = Metal2_squenceloop[0].z,
+      old_f = Metal2_squenceloop[0].f;
+  // same the old action.
+  Metal2_squenceloop[0].x = Metal2_squenceloop[Metal2_sqidx[param_Metal2_squence]].x;
+  Metal2_squenceloop[0].y = Metal2_squenceloop[Metal2_sqidx[param_Metal2_squence]].y;
+  Metal2_squenceloop[0].z = Metal2_squenceloop[Metal2_sqidx[param_Metal2_squence]].z;
+  Metal2_squenceloop[0].f = Metal2_squenceloop[Metal2_sqidx[param_Metal2_squence]].f;
+  // offs = 0, z += 22;
+
+  Get_FlameDoku_Metal2_squenceloop( param_Metal2_squence,
+                                    &(Metal2_squenceloop[0].x),
+                                    &(Metal2_squenceloop[0].y),
+                                    &(Metal2_squenceloop[0].z) );
+  // debug real offset.
+/*  mySerial.print( Metal2_squenceloop[0].x );  mySerial.print( "," );
+  mySerial.print( Metal2_squenceloop[0].y );  mySerial.print( "," );
+  mySerial.print( Metal2_squenceloop[0].z );  mySerial.println( "" ); */
+  // move to block. using loop func.
+  // Metal2_loop();
+  Metal2_loop_old( pass );
+  delay( 1000 );
+  // restore loop var.
+  Metal2_squence = old_Metal2_squence;
+  Metal2_squenceloop[0].x = old_x;
+  Metal2_squenceloop[0].y = old_y;
+  Metal2_squenceloop[0].z = old_z;
+  Metal2_squenceloop[0].f = old_f;
+}
+
+void Metal_Action_bat2( void )
+{
+  return Metal_Action_bat2_getp( -1, 0 );
+}
+
+//----- random 4x4
+
+void Metal2_Shell_Bat3( char n, char x, char y ) 
+{
+    char fx = x - '0' + 2;
+    char fy = n - '1' + 2;
+    Metal_Action_bat2_getp( fy * 7 + fx + 1, 1 );
+    fy = y - '1' + 2;
+    Metal_Action_bat2_getp( fy * 7 + fx, 2 );
+    delay( 1000 );    
+    // dump it.
+    Metal2_pump( 0 );
+    delay( 1000 );    
+}
+
+void Metal_Action_bat3( void )
+{  
+  //----- random 4x4
+  Metal2_init();
+  delay( 1000 );
+  int i;
+  Random4x4();
+  for ( i=0; i<4*4; i++ )
+  {
+    Metal2_Shell_Bat3( looparray_bat4[i*3+0],
+                      looparray_bat4[i*3+1],
+                      looparray_bat4[i*3+2] );
+  }
+  Metal2_init();
+  delay( 1000 );
+}
+
+
