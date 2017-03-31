@@ -38,3 +38,12 @@ Main release point is Metal2.v0.31.MetalBLE-2arm-ShowArm1-4x4Sudoku..txt
 
   It's Sudoku 4x4 Level AI module, using the console output to view the process of AI thinking.
   (just upload and run it, to view the Serial.print output.)
+
+---------------------
+Update record: 3/31/2017
+
+Update Newest FlameDoku Robotic system Demos
+
+  The 2 version of Source adding 2 main functions:
+1, in a 6x7 board, creating 4x4 rules sudoku answer, (6x6 will release later.) not need slider now.
+2, reverse cloud chess board interface, BLE port 0,1 for it.
